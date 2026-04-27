@@ -1,0 +1,80 @@
+[
+  {
+    "id": "r1",
+    "titre": "Lampadaire éteint",
+    "description": "Le lampadaire au coin de la rue est éteint depuis 3 jours.",
+    "categorie": "eclairage",
+    "etat": "en_attente",
+    "date": "2026-02-25",
+    "adresse": "123 Rue des Forges, Trois-Rivières",
+    "latitude": 46.3432,
+    "longitude": -72.5424,
+    "citoyenId": "u1",
+    "citoyenNom": "Marie Tremblay"
+  },
+  {
+    "id": "r2",
+    "titre": "Nid-de-poule dangereux",
+    "description": "Un gros nid-de-poule sur le boulevard des Récollets.",
+    "categorie": "voirie",
+    "etat": "en_cours",
+    "date": "2026-02-20",
+    "adresse": "450 Boul. des Récollets, Trois-Rivières",
+    "latitude": 46.3510,
+    "longitude": -72.5601,
+    "citoyenId": "u2",
+    "citoyenNom": "Jean Côté"
+  },
+  {
+    "id": "r3",
+    "titre": "Banc de parc cassé",
+    "description": "Le banc près du parc Champlain est brisé, il y a des clous apparents.",
+    "categorie": "mobilier",
+    "etat": "repare",
+    "date": "2026-02-10",
+    "adresse": "Parc Champlain, Trois-Rivières",
+    "latitude": 46.3488,
+    "longitude": -72.5378,
+    "citoyenId": "u1",
+    "citoyenNom": "Marie Tremblay"
+  },
+  {
+    "id": "r4",
+    "titre": "Arbre tombé sur le trottoir",
+    "description": "Un arbre est tombé et bloque le passage piéton.",
+    "categorie": "espaces_verts",
+    "etat": "en_attente",
+    "date": "2026-02-28",
+    "adresse": "78 Rue Laviolette, Trois-Rivières",
+    "latitude": 46.3452,
+    "longitude": -72.5450,
+    "citoyenId": "u3",
+    "citoyenNom": "Sophie Gagné"
+  },
+  {
+    "id": "r5",
+    "titre": "Panneau de stop illisible",
+    "description": "Le panneau d'arrêt est couvert de graffitis, très difficile à voir.",
+    "categorie": "signalisation",
+    "etat": "ignore",
+    "date": "2026-01-15",
+    "adresse": "Coin Rue Royale et Rue St-François, Trois-Rivières",
+    "latitude": 46.3467,
+    "longitude": -72.5512,
+    "citoyenId": "u2",
+    "citoyenNom": "Jean Côté"
+  },
+  {
+    "id": "r6",
+    "titre": "Bouche d'égout défoncée",
+    "description": "La bouche d'égout est enfoncée et dangereuse pour les vélos.",
+    "categorie": "voirie",
+    "etat": "en_attente",
+    "date": "2026-03-01",
+    "adresse": "200 Rue Notre-Dame, Trois-Rivières",
+    "latitude": 46.3445,
+    "longitude": -72.5390,
+    "citoyenId": "u1",
+    "citoyenNom": "Marie Tremblay"
+  }
+]
