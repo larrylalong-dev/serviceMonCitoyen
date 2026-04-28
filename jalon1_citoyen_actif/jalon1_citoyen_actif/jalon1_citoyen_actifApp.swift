@@ -15,6 +15,7 @@ struct jalon1_citoyen_actifApp: App {
     // ViewModels peuvent recevoir le ModelContext si nécessaire
     @State var authVM: AuthViewModel
     @State var reportVM: ReportViewModel
+    @State var userVM: UserViewModel
 
     init() {
         // Crée le container pour les modèles User et Report
@@ -28,6 +29,7 @@ struct jalon1_citoyen_actifApp: App {
         let context = modelContainer.mainContext
         _authVM = State(wrappedValue: AuthViewModel(modelContext: context))
         _reportVM = State(wrappedValue: ReportViewModel(modelContext: context))
+        _userVM = State(wrappedValue: UserViewModel())
 
         // Seed initiale : si la base est vide, on charge depuis reports.json
         seedIfNeeded(context: context)
@@ -38,6 +40,7 @@ struct jalon1_citoyen_actifApp: App {
             ContentView()
                 .environment(authVM)
                 .environment(reportVM)
+                .environment(userVM)
                 .modelContainer(modelContainer)
         }
     }

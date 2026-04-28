@@ -5,10 +5,18 @@ import Foundation
 import SwiftData
 
 // Les différents types d'utilisateurs
-enum UserRole: String, Codable {
+enum UserRole: String, Codable, CaseIterable {
     case citoyen = "citoyen"
     case employe = "employe"
     case agent  = "agent"
+
+    var label: String {
+        switch self {
+        case .citoyen: return "Citoyen"
+        case .employe: return "Employé municipal"
+        case .agent: return "Agent municipal"
+        }
+    }
 }
 
 // Remplacement de la struct par une entité SwiftData (@Model)

@@ -1,5 +1,5 @@
 // RegisterView.swift
-// Page de création de compte
+// Page de création de compte moderne
 
 import SwiftUI
 import SwiftData
@@ -8,7 +8,7 @@ struct RegisterView: View {
 
     @Environment(AuthViewModel.self) var authVM
     @Environment(\.dismiss) var dismiss
-    // Ensemble de state pour les champs du formulaire d'inscription
+
     @State private var prenom: String = ""
     @State private var nom: String = ""
     @State private var courriel: String = ""
@@ -16,61 +16,61 @@ struct RegisterView: View {
     @State private var adresse: String = ""
     @State private var motDePasse: String = ""
     @State private var confirmation: String = ""
+    @State private var messageLocal = ""
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 16) {
+        ZStack {
+            AuthBackground()
 
-                Text("Créer un compte")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                    .padding(.top, 20)
+            ScrollView {
+                VStack(spacing: 24) {
+                    AuthHeader(
+                        title: "Créer un compte",
+                        subtitle: "Un profil citoyen permet de créer et suivre vos signalements.",
+                        icon: "person.crop.circle.badge.plus"
+                    )
 
-                Group {
-                    TextField("Prénom", text: $prenom)
-                    TextField("Nom", text: $nom)
-                    TextField("Courriel", text: $courriel)
-                        .keyboardType(.emailAddress)
-                        .autocapitalization(.none)
-                    TextField("Téléphone", text: $telephone)
-                        .keyboardType(.phonePad)
-                    TextField("Adresse", text: $adresse)
-                    SecureField("Mot de passe", text: $motDePasse)
-                    SecureField("Confirmer le mot de passe", text: $confirmation)
-                }
-                .textFieldStyle(.roundedBorder)
-                .padding(.horizontal)
+                    AuthCard {
+                        AuthTextField(title: "Prénom", icon: "person.fill", text: $prenom)
+                        AuthTextField(title: "Nom", icon: "person.text.rectangle.fill", text: $nom)
+                        AuthTextField(title: "Courriel", icon: "envelope.fill", text: $courriel, keyboard: .emailAddress)
+                        AuthTextField(title: "Téléphone", icon: "phone.fill", text: $telephone, keyboard: .phonePad)
+                        AuthTextField(title: "Adresse", icon: "house.fill", text: $adresse)
+                        AuthTextField(title: "Mot de passe", icon: "lock.fill", text: $motDePasse, isSecure: true)
+                        AuthTextField(title: "Confirmer le mot de passe", icon: "checkmark.shield.fill", text: $confirmation, isSecure: true)
 
-                // Affiche l'erreur si quelque chose ne va pas
-                if !authVM.messageErreur.isEmpty {
-                    Text(authVM.messageErreur)
-                        .foregroundColor(.red)
-                        .font(.caption)
-                }
+                        AuthErrorView(message: messageLocal.isEmpty ? authVM.messageErreur : messageLocal)
 
-                Button(action: {
-                    // Vérifie que les mots de passe correspondent
-                    if motDePasse != confirmation {
-                        authVM.messageErreur = "Les mots de passe ne correspondent pas."
-                        return
+                        AuthPrimaryButton(
+                            title: "Créer mon compte",
+                            icon: "checkmark.circle.fill",
+                            isLoading: authVM.estEnChargement
+                        ) {
+                            creerCompte()
+                        }
                     }
-                    authVM.inscription(prenom: prenom, nom: nom,
-                                       courriel: courriel, telephone: telephone,
-                                       adresse: adresse, motDePasse: motDePasse)
-                }) {
-                    Text("Créer mon compte")
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.green)
-                        .foregroundColor(.white)
-                        .cornerRadius(10)
+                    .padding(.bottom, 20)
                 }
-                .padding(.horizontal)
-                .padding(.bottom, 20)
             }
         }
         .navigationTitle("Inscription")
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    func creerCompte() {
+        guard motDePasse == confirmation else {
+            messageLocal = "Les mots de passe ne correspondent pas."
+            return
+        }
+        messageLocal = ""
+        authVM.inscription(
+            prenom: prenom,
+            nom: nom,
+            courriel: courriel,
+            telephone: telephone,
+            adresse: adresse,
+            motDePasse: motDePasse
+        )
     }
 }
 
@@ -78,7 +78,7 @@ struct RegisterView: View {
     let config = ModelConfiguration(isStoredInMemoryOnly: true)
     let container = try! ModelContainer(for: User.self, Report.self, configurations: config)
     let authVM = AuthViewModel(modelContext: container.mainContext)
-    
+
     NavigationStack {
         RegisterView()
             .environment(authVM)

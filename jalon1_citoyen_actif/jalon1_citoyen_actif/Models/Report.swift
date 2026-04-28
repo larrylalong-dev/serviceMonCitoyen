@@ -9,7 +9,7 @@ enum ReportCategorie: String, Codable, CaseIterable {
     case eclairage      = "eclairage"
     case voirie         = "voirie"
     case mobilier       = "mobilier"
-    case espacesVerts   = "espaces_verts"
+    case espacesVerts   = "espacesVerts"
     case signalisation  = "signalisation"
 
     // Texte lisible affiché dans l'interface
@@ -25,9 +25,9 @@ enum ReportCategorie: String, Codable, CaseIterable {
 }
 
 // L'état d'un rapport
-enum ReportEtat: String, Codable {
-    case enAttente  = "en_attente"
-    case enCours    = "en_cours"
+enum ReportEtat: String, Codable, CaseIterable {
+    case enAttente  = "enAttente"
+    case enCours    = "enCours"
     case repare     = "repare"
     case ignore     = "ignore"
 

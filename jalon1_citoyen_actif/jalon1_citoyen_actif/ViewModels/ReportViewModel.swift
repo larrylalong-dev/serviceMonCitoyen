@@ -6,6 +6,7 @@ import Observation
 import SwiftData
 
 // @Observable remplace ObservableObject en Swift moderne
+@MainActor
 @Observable
 class ReportViewModel {
 
@@ -14,6 +15,10 @@ class ReportViewModel {
 
     // La liste complète des rapports (DTO) - ce que les vues reçoivent
     var tousLesRapports: [ReportDTO] = []
+    var messageErreur: String = ""
+    var estEnChargement: Bool = false
+
+    private let api = APIService.shared
 
     // Initialisation avec un ModelContext
     init(modelContext: ModelContext) {
@@ -21,16 +26,22 @@ class ReportViewModel {
         chargerRapports()
     }
 
-    // Charge les rapports depuis SwiftData et les convertit en DTO
+    // Charge les rapports depuis le backend Railway
     func chargerRapports() {
-        do {
-            let descriptor = FetchDescriptor<Report>(sortBy: [SortDescriptor(\.date, order: .reverse)])
-            let reports = try modelContext.fetch(descriptor)
-            // Convertir tous les Report en ReportDTO
-            tousLesRapports = reports.map { $0.toDTO() }
-        } catch {
-            print("Erreur lors du chargement des rapports: \(error)")
-            tousLesRapports = []
+        messageErreur = ""
+        estEnChargement = true
+
+        Task {
+            defer { estEnChargement = false }
+            do {
+                tousLesRapports = try await api.listerRapports()
+            } catch let error as APIError {
+                messageErreur = error.localizedDescription
+                tousLesRapports = []
+            } catch {
+                messageErreur = "Erreur réseau: \(error.localizedDescription)"
+                tousLesRapports = []
+            }
         }
     }
 
@@ -39,21 +50,41 @@ class ReportViewModel {
         return tousLesRapports.filter { $0.citoyenId == id }
     }
 
-    // Change l'état d'un rapport (utilisé par les employés et agents)
-    func changerEtat(rapportId: String, nouvelEtat: ReportEtat) {
-        // Chercher le rapport dans SwiftData
-        let predicate = #Predicate<Report> { $0.id == rapportId }
+    // Change l'état d'un rapport via le backend
+    @discardableResult
+    func changerEtat(rapportId: String, nouvelEtat: ReportEtat,
+                     description: String, imageData: Data?) async -> Bool {
+        messageErreur = ""
+
         do {
-            let descriptor = FetchDescriptor<Report>(predicate: predicate)
-            let results = try modelContext.fetch(descriptor)
-            if let report = results.first {
-                report.etat = nouvelEtat
-                try modelContext.save()
-                // Recharger pour s'assurer que tout est synchronisé
-                chargerRapports()
+            let updated = try await api.changerEtat(
+                rapportId: rapportId,
+                nouvelEtat: nouvelEtat,
+                description: description,
+                imageData: imageData
+            )
+            if let index = tousLesRapports.firstIndex(where: { $0.id == rapportId }) {
+                tousLesRapports[index] = updated
+            } else {
+                tousLesRapports.insert(updated, at: 0)
             }
+            return true
+        } catch let error as APIError {
+            messageErreur = error.localizedDescription
         } catch {
-            print("Erreur lors de la sauvegarde: \(error)")
+            messageErreur = "Erreur réseau: \(error.localizedDescription)"
+        }
+        return false
+    }
+
+    func changerEtat(rapportId: String, nouvelEtat: ReportEtat) {
+        Task {
+            await changerEtat(
+                rapportId: rapportId,
+                nouvelEtat: nouvelEtat,
+                description: "Mise à jour de l’état depuis l’application mobile.",
+                imageData: nil
+            )
         }
     }
 
@@ -70,35 +101,31 @@ class ReportViewModel {
         }
     }
 
-    // Ajoute un nouveau rapport avec image à SwiftData
+    // Ajoute un nouveau rapport avec image via le backend
     func ajouterRapportAvecImageEtCoordonnees(titre: String, details: String,
                                                categorie: ReportCategorie, adresse: String,
                                                latitude: Double, longitude: Double,
                                                citoyenId: String, citoyenNom: String,
                                                imageData: Data?) {
-        // Créer le DTO
-        let reportDTO = ReportDTO(
-            id: UUID().uuidString,
-            titre: titre,
-            details: details,
-            categorie: categorie,
-            etat: .enAttente,
-            date: ISO8601DateFormatter().string(from: Date()),
-            adresse: adresse,
-            latitude: latitude,
-            longitude: longitude,
-            citoyenId: citoyenId,
-            citoyenNom: citoyenNom,
-            imageData: imageData
-        )
-        // Convertir en modèle SwiftData et sauvegarder
-        let rapport = reportDTO.toModel()
-        modelContext.insert(rapport)
-        do {
-            try modelContext.save()
-            chargerRapports()
-        } catch {
-            print("Erreur lors de l'ajout du rapport: \(error)")
+        messageErreur = ""
+
+        Task {
+            do {
+                let report = try await api.creerRapport(
+                    titre: titre,
+                    details: details,
+                    categorie: categorie,
+                    adresse: adresse,
+                    latitude: latitude,
+                    longitude: longitude,
+                    imageData: imageData
+                )
+                tousLesRapports.insert(report, at: 0)
+            } catch let error as APIError {
+                messageErreur = error.localizedDescription
+            } catch {
+                messageErreur = "Erreur réseau: \(error.localizedDescription)"
+            }
         }
     }
 }

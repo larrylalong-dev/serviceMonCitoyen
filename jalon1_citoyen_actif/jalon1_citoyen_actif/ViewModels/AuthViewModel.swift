@@ -6,6 +6,7 @@ import Observation
 import SwiftData
 
 // @Observable remplace ObservableObject en Swift moderne
+@MainActor
 @Observable
 class AuthViewModel {
 
@@ -17,6 +18,9 @@ class AuthViewModel {
 
     // Message d'erreur à afficher dans les vues
     var messageErreur: String = ""
+    var estEnChargement: Bool = false
+
+    private let api = APIService.shared
 
     // Initialisation avec un ModelContext
     init(modelContext: ModelContext) {
@@ -43,55 +47,154 @@ class AuthViewModel {
         do { try modelContext.save() } catch { print("Erreur seed users: \(error)") }
     }
 
-    // Simule la connexion avec courriel + mot de passe en s'appuyant sur SwiftData
+    // Connexion via le backend Railway
     func connexion(courriel: String, motDePasse: String) {
-        // Cherche dans SwiftData
-        let predicate = #Predicate<User> { $0.courriel == courriel }
-        do {
-            let descriptor = FetchDescriptor<User>(predicate: predicate)
-            let results = try modelContext.fetch(descriptor)
-            if let user = results.first {
-                // En vrai on vérifierait le mot de passe ici
-                if motDePasse == "1234" {
-                    // Convertir User (SwiftData) en UserDTO
-                    utilisateurConnecte = user.toDTO()
-                    messageErreur = ""
-                } else {
-                    messageErreur = "Mot de passe incorrect"
-                }
-            } else {
-                messageErreur = "Aucun compte trouvé avec ce courriel"
+        let courrielNettoye = courriel.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let motDePasseNettoye = motDePasse.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard courrielNettoye.contains("@"), courrielNettoye.contains(".") else {
+            messageErreur = "Veuillez entrer un courriel valide."
+            return
+        }
+        guard !motDePasseNettoye.isEmpty else {
+            messageErreur = "Veuillez entrer votre mot de passe."
+            return
+        }
+
+        messageErreur = ""
+        estEnChargement = true
+
+        Task {
+            defer { estEnChargement = false }
+            do {
+                let (user, token) = try await api.connexion(courriel: courrielNettoye, motDePasse: motDePasseNettoye)
+                api.setToken(token)
+                utilisateurConnecte = user
+            } catch let error as APIError {
+                messageErreur = error.localizedDescription
+            } catch {
+                messageErreur = "Erreur réseau: \(error.localizedDescription)"
             }
-        } catch {
-            messageErreur = "Erreur interne: \(error)"
         }
     }
 
-    // Simule la création d'un compte et l'enregistre dans SwiftData
+    // Inscription via le backend Railway
     func inscription(prenom: String, nom: String, courriel: String,
                      telephone: String, adresse: String, motDePasse: String) {
-        // Vérifie que les champs ne sont pas vides
-        if prenom.isEmpty || nom.isEmpty || courriel.isEmpty || motDePasse.isEmpty {
+        let prenomNettoye = prenom.trimmingCharacters(in: .whitespacesAndNewlines)
+        let nomNettoye = nom.trimmingCharacters(in: .whitespacesAndNewlines)
+        let courrielNettoye = courriel.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let telephoneNettoye = telephone.trimmingCharacters(in: .whitespacesAndNewlines)
+        let adresseNettoyee = adresse.trimmingCharacters(in: .whitespacesAndNewlines)
+        let motDePasseNettoye = motDePasse.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if prenomNettoye.isEmpty || nomNettoye.isEmpty || courrielNettoye.isEmpty ||
+            telephoneNettoye.isEmpty || adresseNettoyee.isEmpty || motDePasseNettoye.isEmpty {
             messageErreur = "Veuillez remplir tous les champs."
             return
         }
-        // Crée un nouvel utilisateur et le sauvegarde
-        let nouvelUser = User(id: UUID().uuidString, prenom: prenom, nom: nom,
-                              courriel: courriel, telephone: telephone,
-                              adresse: adresse, role: .citoyen, numeroAgent: nil)
-        modelContext.insert(nouvelUser)
-        do {
-            try modelContext.save()
-            // Convertir en DTO pour le ViewModel
-            utilisateurConnecte = nouvelUser.toDTO()
-            messageErreur = ""
-        } catch {
-            messageErreur = "Erreur lors de la création du compte: \(error)"
+        if !courrielNettoye.contains("@") || !courrielNettoye.contains(".") {
+            messageErreur = "Veuillez entrer un courriel valide."
+            return
+        }
+        if telephoneNettoye.filter({ $0.isNumber }).count < 10 {
+            messageErreur = "Le téléphone doit contenir au moins 10 chiffres."
+            return
+        }
+        if adresseNettoyee.count < 5 {
+            messageErreur = "L’adresse doit contenir au moins 5 caractères."
+            return
+        }
+        if motDePasseNettoye.count < 4 {
+            messageErreur = "Le mot de passe doit contenir au moins 4 caractères."
+            return
+        }
+
+        messageErreur = ""
+        estEnChargement = true
+
+        Task {
+            defer { estEnChargement = false }
+            do {
+                let (user, token) = try await api.inscription(
+                    prenom: prenomNettoye,
+                    nom: nomNettoye,
+                    courriel: courrielNettoye,
+                    telephone: telephoneNettoye,
+                    adresse: adresseNettoyee,
+                    motDePasse: motDePasseNettoye
+                )
+                api.setToken(token)
+                utilisateurConnecte = user
+            } catch let error as APIError {
+                messageErreur = error.localizedDescription
+            } catch {
+                messageErreur = "Erreur réseau: \(error.localizedDescription)"
+            }
         }
     }
 
-    // Simule la déconnexion
+    // Déconnexion
     func deconnexion() {
+        api.setToken(nil)
         utilisateurConnecte = nil
+    }
+
+    @discardableResult
+    func modifierProfil(prenom: String, nom: String, telephone: String,
+                        adresse: String, motDePasse: String?) async -> Bool {
+        guard let utilisateurConnecte else {
+            messageErreur = "Aucun utilisateur connecté."
+            return false
+        }
+
+        let prenomNettoye = prenom.trimmingCharacters(in: .whitespacesAndNewlines)
+        let nomNettoye = nom.trimmingCharacters(in: .whitespacesAndNewlines)
+        let telephoneNettoye = telephone.trimmingCharacters(in: .whitespacesAndNewlines)
+        let adresseNettoyee = adresse.trimmingCharacters(in: .whitespacesAndNewlines)
+        let motDePasseNettoye = motDePasse?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+
+        guard !prenomNettoye.isEmpty, !nomNettoye.isEmpty, !telephoneNettoye.isEmpty else {
+            messageErreur = "Veuillez remplir le prénom, le nom et le téléphone."
+            return false
+        }
+        guard telephoneNettoye.filter({ $0.isNumber }).count >= 10 else {
+            messageErreur = "Le téléphone doit contenir au moins 10 chiffres."
+            return false
+        }
+        guard utilisateurConnecte.role != .citoyen || adresseNettoyee.count >= 5 else {
+            messageErreur = "L’adresse doit contenir au moins 5 caractères."
+            return false
+        }
+        guard adresseNettoyee.isEmpty || adresseNettoyee.count >= 5 else {
+            messageErreur = "L’adresse doit contenir au moins 5 caractères."
+            return false
+        }
+        guard motDePasseNettoye.isEmpty || motDePasseNettoye.count >= 4 else {
+            messageErreur = "Le mot de passe doit contenir au moins 4 caractères."
+            return false
+        }
+
+        messageErreur = ""
+        estEnChargement = true
+        defer { estEnChargement = false }
+
+        do {
+            let user = try await api.modifierProfil(
+                userId: utilisateurConnecte.id,
+                prenom: prenomNettoye,
+                nom: nomNettoye,
+                telephone: telephoneNettoye,
+                adresse: adresseNettoyee,
+                motDePasse: motDePasseNettoye.isEmpty ? nil : motDePasseNettoye
+            )
+            self.utilisateurConnecte = user
+            return true
+        } catch let error as APIError {
+            messageErreur = error.localizedDescription
+        } catch {
+            messageErreur = "Erreur réseau: \(error.localizedDescription)"
+        }
+        return false
     }
 }

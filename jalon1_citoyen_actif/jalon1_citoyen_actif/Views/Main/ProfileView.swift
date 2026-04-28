@@ -9,6 +9,8 @@ struct ProfileView: View {
     @Environment(AuthViewModel.self) var authVM
     @Environment(ReportViewModel.self) var reportVM
 
+    @State private var afficherEditionProfil = false
+
     var body: some View {
         NavigationStack {
             if let user = authVM.utilisateurConnecte {
@@ -58,6 +60,12 @@ struct ProfileView: View {
                         if let numAgent = user.numeroAgent {
                             InfoLigneView(label: "No. agent", valeur: numAgent)
                         }
+
+                        Button {
+                            afficherEditionProfil = true
+                        } label: {
+                            Label("Modifier mes informations", systemImage: "pencil")
+                        }
                     }
 
                     // Section différente selon le rôle
@@ -105,6 +113,19 @@ struct ProfileView: View {
                     }
                 }
                 .navigationTitle("Mon profil")
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button {
+                            afficherEditionProfil = true
+                        } label: {
+                            Image(systemName: "pencil.circle.fill")
+                        }
+                    }
+                }
+                .sheet(isPresented: $afficherEditionProfil) {
+                    ProfileEditSheet(user: user)
+                        .environment(authVM)
+                }
 
             } else {
                 Text("Aucun utilisateur connecté.")
@@ -128,6 +149,113 @@ struct ProfileView: View {
         case .citoyen: return .blue
         case .employe: return .orange
         case .agent:   return .purple
+        }
+    }
+}
+
+struct ProfileEditSheet: View {
+    let user: UserDTO
+
+    @Environment(AuthViewModel.self) var authVM
+    @Environment(\.dismiss) var dismiss
+
+    @State private var prenom: String
+    @State private var nom: String
+    @State private var telephone: String
+    @State private var adresse: String
+    @State private var motDePasse: String = ""
+    @State private var confirmationMotDePasse: String = ""
+    @State private var messageLocal = ""
+    @State private var enregistrement = false
+
+    init(user: UserDTO) {
+        self.user = user
+        _prenom = State(initialValue: user.prenom)
+        _nom = State(initialValue: user.nom)
+        _telephone = State(initialValue: user.telephone)
+        _adresse = State(initialValue: user.adresse)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Identité") {
+                    TextField("Prénom", text: $prenom)
+                        .textContentType(.givenName)
+                    TextField("Nom", text: $nom)
+                        .textContentType(.familyName)
+                    Text(user.courriel)
+                        .foregroundColor(.secondary)
+                }
+
+                Section("Coordonnées") {
+                    TextField("Téléphone", text: $telephone)
+                        .keyboardType(.phonePad)
+                        .textContentType(.telephoneNumber)
+                    TextField("Adresse", text: $adresse, axis: .vertical)
+                        .textContentType(.fullStreetAddress)
+                }
+
+                Section("Mot de passe") {
+                    SecureField("Nouveau mot de passe optionnel", text: $motDePasse)
+                        .textContentType(.newPassword)
+                    SecureField("Confirmer le mot de passe", text: $confirmationMotDePasse)
+                        .textContentType(.newPassword)
+                    Text("Laisse ces champs vides si tu ne veux pas changer ton mot de passe.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+
+                if !messageLocal.isEmpty || !authVM.messageErreur.isEmpty {
+                    Section {
+                        Text(messageLocal.isEmpty ? authVM.messageErreur : messageLocal)
+                            .font(.caption)
+                            .foregroundColor(.red)
+                    }
+                }
+            }
+            .navigationTitle("Modifier le profil")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Annuler") { dismiss() }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: enregistrer) {
+                        if enregistrement {
+                            ProgressView()
+                        } else {
+                            Text("Enregistrer")
+                        }
+                    }
+                    .disabled(enregistrement)
+                }
+            }
+        }
+    }
+
+    func enregistrer() {
+        guard motDePasse.isEmpty || motDePasse == confirmationMotDePasse else {
+            messageLocal = "Les mots de passe ne correspondent pas."
+            return
+        }
+
+        messageLocal = ""
+        enregistrement = true
+        Task {
+            let success = await authVM.modifierProfil(
+                prenom: prenom,
+                nom: nom,
+                telephone: telephone,
+                adresse: adresse,
+                motDePasse: motDePasse.isEmpty ? nil : motDePasse
+            )
+            await MainActor.run {
+                enregistrement = false
+                if success {
+                    dismiss()
+                }
+            }
         }
     }
 }

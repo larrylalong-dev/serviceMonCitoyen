@@ -9,6 +9,7 @@ struct MainTabView: View {
     // On récupère les ViewModels pour les passer aux vues enfants
     @Environment(AuthViewModel.self) var authVM
     @Environment(ReportViewModel.self) var reportVM
+    @Environment(UserViewModel.self) var userVM
 
     var body: some View {
         TabView {
@@ -37,6 +38,15 @@ struct MainTabView: View {
                 .tabItem {
                     Label("Profil", systemImage: "person.circle")
                 }
+
+            if authVM.utilisateurConnecte?.role == .agent {
+                UsersAdminView()
+                    .environment(userVM)
+                    .environment(authVM)
+                    .tabItem {
+                        Label("Utilisateurs", systemImage: "person.3.fill")
+                    }
+            }
         }
         // Badge de rôle affiché en haut si c'est un employé ou agent
         .overlay(alignment: .top) {
@@ -55,6 +65,16 @@ struct MainTabView: View {
                 .padding(.top, 8)
             }
         }
+        .task(id: authVM.utilisateurConnecte?.id) {
+            if authVM.utilisateurConnecte != nil {
+                reportVM.chargerRapports()
+            }
+        }
+        .task(id: authVM.utilisateurConnecte?.role) {
+            if authVM.utilisateurConnecte?.role == .agent {
+                userVM.chargerUtilisateurs()
+            }
+        }
     }
 }
 
@@ -67,5 +87,6 @@ struct MainTabView: View {
     MainTabView()
         .environment(authVM)
         .environment(reportVM)
+        .environment(UserViewModel())
         .modelContainer(container)
 }

@@ -1,89 +1,74 @@
 // LoginView.swift
-// Page de connexion de l'application
+// Page de connexion moderne de l'application
 
 import SwiftUI
 import SwiftData
 
 struct LoginView: View {
 
-    // On accède au ViewModel partagé
     @Environment(AuthViewModel.self) var authVM
 
-    // Les textes entrés par l'utilisateur
     @State private var courriel: String = ""
     @State private var motDePasse: String = ""
-
-    // Pour naviguer vers les autres pages
     @State private var allerInscription: Bool = false
     @State private var allerMotDePasse: Bool = false
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 20) {
+            ZStack {
+                AuthBackground()
 
-                // Titre de l'application
-                Text("Citoyen Actif")
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
-                    .padding(.top, 40)
+                ScrollView {
+                    VStack(spacing: 28) {
+                        AuthHeader(
+                            title: "Citoyen Actif",
+                            subtitle: "Signalez, suivez et améliorez votre quartier en quelques gestes.",
+                            icon: "building.2.crop.circle.fill"
+                        )
 
-                Text("Signaler un bris près de chez vous")
-                    .font(.subheadline)
-                    .foregroundColor(.gray)
+                        AuthCard {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Bon retour")
+                                    .font(.title2)
+                                    .fontWeight(.bold)
+                                Text("Connectez-vous pour suivre vos rapports.")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
 
-                Spacer()
+                            AuthTextField(title: "Courriel", icon: "envelope.fill", text: $courriel, keyboard: .emailAddress)
+                            AuthTextField(title: "Mot de passe", icon: "lock.fill", text: $motDePasse, isSecure: true)
 
-                // Champ courriel
-                TextField("Courriel", text: $courriel)
-                    .keyboardType(.emailAddress)
-                    .autocapitalization(.none)
-                    .textFieldStyle(.roundedBorder)
-                    .padding(.horizontal)
+                            AuthErrorView(message: authVM.messageErreur)
 
-                // Champ mot de passe
-                SecureField("Mot de passe", text: $motDePasse)
-                    .textFieldStyle(.roundedBorder)
-                    .padding(.horizontal)
+                            AuthPrimaryButton(
+                                title: "Se connecter",
+                                icon: "arrow.right.circle.fill",
+                                isLoading: authVM.estEnChargement
+                            ) {
+                                authVM.connexion(courriel: courriel, motDePasse: motDePasse)
+                            }
 
-                // Message d'erreur si connexion échoue
-                if !authVM.messageErreur.isEmpty {
-                    Text(authVM.messageErreur)
-                        .foregroundColor(.red)
-                        .font(.caption)
-                }
+                            Button("Mot de passe oublié ?") {
+                                allerMotDePasse = true
+                            }
+                            .font(.footnote)
+                            .fontWeight(.semibold)
+                        }
 
-                // Bouton de connexion
-                Button(action: {
-                    authVM.connexion(courriel: courriel, motDePasse: motDePasse)
-                }) {
-                    Text("Se connecter")
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.blue)
-                        .foregroundColor(.white)
-                        .cornerRadius(10)
-                }
-                .padding(.horizontal)
-
-                // Lien vers mot de passe oublié
-                Button("Mot de passe oublié ?") {
-                    allerMotDePasse = true
-                }
-                .font(.caption)
-
-                Spacer()
-
-                // Lien vers la page d'inscription
-                HStack {
-                    Text("Pas encore de compte ?")
+                        HStack(spacing: 4) {
+                            Text("Pas encore de compte ?")
+                                .foregroundColor(.secondary)
+                            Button("Créer un compte") {
+                                allerInscription = true
+                            }
+                            .fontWeight(.bold)
+                        }
                         .font(.footnote)
-                    Button("S'inscrire") {
-                        allerInscription = true
+                        .padding(.bottom, 18)
                     }
-                    .font(.footnote)
                 }
-                .padding(.bottom, 20)
-
             }
             .navigationDestination(isPresented: $allerInscription) {
                 RegisterView()
@@ -91,15 +76,7 @@ struct LoginView: View {
             .navigationDestination(isPresented: $allerMotDePasse) {
                 ForgotPasswordView()
             }
-            // Petit texte d'aide pour les tests
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .bottomBar) {
-                    Text("Test : courriel marie@test.com / mot de passe 1234")
-                        .font(.caption2)
-                        .foregroundColor(.gray)
-                }
-            }
         }
     }
 }
@@ -108,7 +85,7 @@ struct LoginView: View {
     let config = ModelConfiguration(isStoredInMemoryOnly: true)
     let container = try! ModelContainer(for: User.self, Report.self, configurations: config)
     let authVM = AuthViewModel(modelContext: container.mainContext)
-    
+
     LoginView()
         .environment(authVM)
         .modelContainer(container)
